@@ -23,7 +23,8 @@ function getCacheKey(type, params) {
     return `${type}:city:${city}:${lang || 'en'}`;
   }
   if (lat && lon) {
-    return `${type}:coords:${lat}:${lon}`;
+    // Include lang parameter in coords-based cache key if present
+    return `${type}:coords:${lat}:${lon}:${lang || 'en'}`;
   }
   return null;
 }
@@ -92,7 +93,10 @@ async function fetchWithCache(url, cacheKey) {
   // Make API call
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`);
+    // Include status code in error for proper error handling
+    const error = new Error(`API error: ${response.status} ${response.statusText}`);
+    error.statusCode = response.status;
+    throw error;
   }
   
   const data = await response.json();
@@ -131,11 +135,11 @@ export async function getCurrentWeather(params) {
 
 /**
  * Fetches forecast data
- * @param {Object} params - { city?, lat?, lon? }
+ * @param {Object} params - { city?, lat?, lon?, lang? }
  * @returns {Promise<Object>} Forecast data
  */
 export async function getForecast(params) {
-  const { city, lat, lon } = params;
+  const { city, lat, lon, lang = 'en' } = params;
   const apiKey = process.env.OW_API_KEY;
   
   if (!apiKey) {
@@ -144,9 +148,9 @@ export async function getForecast(params) {
   
   let url;
   if (city) {
-    url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}`;
+    url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}&lang=${lang}`;
   } else if (lat && lon) {
-    url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`;
+    url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}&lang=${lang}`;
   } else {
     throw new Error('Either city or lat/lon coordinates required');
   }
@@ -223,7 +227,11 @@ export async function getGeocode(params) {
 
 // Export cache management functions for testing/debugging
 export function clearCache() {
-  Object.keys(cache).forEach(key => delete cache[key]);
+  for (const key in cache) {
+    if (cache.hasOwnProperty(key)) {
+      delete cache[key];
+    }
+  }
 }
 
 export function getCacheStats() {

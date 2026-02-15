@@ -12,8 +12,8 @@ export default async function handler(req, res) {
     const data = await getCurrentWeather({ city, lang: language });
     res.status(200).json(data);
   } catch (error) {
-    // Handle specific error cases
-    if (error.message.includes('404')) {
+    // Handle specific error cases based on status code
+    if (error.statusCode === 404) {
       return res.status(404).json({ error: "City not found" });
     }
     res.status(500).json({ error: error.message });
