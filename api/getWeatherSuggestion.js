@@ -165,14 +165,30 @@ Suggestions:
         console.log("prompt:", prompt);
         console.log("Gemini API Full Response:", JSON.stringify(data, null, 2));
   
-        if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
-          throw new Error("Invalid API response structure.");
+        // Validate the response structure more thoroughly
+        if (!data.candidates || data.candidates.length === 0) {
+          throw new Error("No candidates in API response.");
+        }
+        
+        const candidate = data.candidates[0];
+        if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
+          throw new Error("Invalid content structure in API response.");
+        }
+        
+        const text = candidate.content.parts[0].text;
+        if (!text || text.trim() === "") {
+          throw new Error("Empty text in API response.");
         }
   
         // Return the suggestion as JSON.
-        return res.status(200).json({ suggestion: data.candidates[0].content.parts[0].text });
+        return res.status(200).json({ suggestion: text });
       } catch (error) {
         console.error(`Attempt ${attempts + 1} - Error:`, error);
+        console.error(`Error details:`, error.message);
+        if (error.response) {
+          console.error(`Response status:`, error.response.status);
+          console.error(`Response data:`, error.response.data);
+        }
         attempts++;
         if (attempts >= maxRetries) {
           const fallbackMessage =
