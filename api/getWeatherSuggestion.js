@@ -13,7 +13,8 @@ export default async function handler(req, res) {
     }
     
     // Validate weatherData structure
-    if (!weatherData.main || !weatherData.weather || !weatherData.wind || !weatherData.clouds || !weatherData.sys) {
+    if (!weatherData.main || !weatherData.weather || !weatherData.weather.length || 
+        !weatherData.wind || !weatherData.clouds || !weatherData.sys) {
       console.error("Invalid weatherData structure:", JSON.stringify(weatherData, null, 2));
       const fallbackMessage = lang === "tr"
         ? "Geçersiz hava durumu verisi."
