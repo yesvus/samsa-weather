@@ -12,11 +12,15 @@ export default async function handler(req, res) {
       return;
     }
     
-    // Constants used for building the prompts.
-    const baseURL = "https://openrouter.ai/api/v1";
-    const AiModel = "google/gemini-flash-1.5-8b";
-    const siteURL = "https://riprayt.github.io/ai_samsa_weather"; 
-    const siteTitle = "Samsa Weather";                         
+    // Check for GEMINI_API_KEY
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    if (!GEMINI_API_KEY) {
+      console.error("GEMINI_API_KEY is not set");
+      const fallbackMessage = lang === "tr"
+        ? "API anahtarı yapılandırılmamış."
+        : "API key not configured.";
+      return res.status(500).json({ suggestion: fallbackMessage });
+    }                         
   
     // --- determineClothing logic ---
     const temp = Math.round(weatherData.main.temp);
@@ -100,59 +104,73 @@ export default async function handler(req, res) {
       umbrellaRecommendation = "An umbrella is unnecessary as there is no rain forecasted.";
     }
   
-    // Build the prompts for the AI call.
-    const systemPrompt = `
-  You are a professional meteorologist providing accurate weather insights.
-  Your goal is to deliver precise, concise, and expert-level weather analyses.
-  - Use professional meteorological language while giving the explanation friendly and simple.
-  - Give your response in the language ${lang}.
-  - Your response should be 20-30 words long.
-  Include:
-  - A one-sentence summary of the weather conditions.
-  - Clothing advice based on: ${clothingSuggestion}
-  - A one-sentence statement on umbrella necessity.
-    `;
-    
-    const userPrompt = `
-  Weather data for ${extractedData.location}:
-  - Temperature: ${extractedData.temperature}°C (Feels like: ${extractedData.feels_like}°C)
-  - Min/Max: ${extractedData.min_temp}°C / ${extractedData.max_temp}°C
-  - Humidity: ${extractedData.humidity}%
-  - Pressure: ${extractedData.pressure} hPa
-  - Wind: ${extractedData.wind_speed} m/s at ${extractedData.wind_direction}°
-  - Condition: ${extractedData.weather_condition} (${extractedData.weather_description})
-  - Visibility: ${extractedData.visibility} meters
-  - Cloudiness: ${extractedData.cloudiness}%
-  - Sunrise: ${extractedData.sunrise}, Sunset: ${extractedData.sunset}
-  
-  Suggestions:
-  - Clothing: ${clothingSuggestion}
-  - Umbrella: ${umbrellaRecommendation}
+    // Build the combined prompt for Gemini API.
+    const prompt = `
+You are a professional meteorologist providing accurate weather insights.
+Your goal is to deliver precise, concise, and expert-level weather analyses.
+- Use professional meteorological language while giving the explanation friendly and simple.
+- Give your response in the language ${lang}.
+- Your response should be 20-30 words long.
+Include:
+- A one-sentence summary of the weather conditions.
+- Clothing advice based on: ${clothingSuggestion}
+- A one-sentence statement on umbrella necessity.
+
+Weather data for ${extractedData.location}:
+- Temperature: ${extractedData.temperature}°C (Feels like: ${extractedData.feels_like}°C)
+- Min/Max: ${extractedData.min_temp}°C / ${extractedData.max_temp}°C
+- Humidity: ${extractedData.humidity}%
+- Pressure: ${extractedData.pressure} hPa
+- Wind: ${extractedData.wind_speed} m/s at ${extractedData.wind_direction}°
+- Condition: ${extractedData.weather_condition} (${extractedData.weather_description})
+- Visibility: ${extractedData.visibility} meters
+- Cloudiness: ${extractedData.cloudiness}%
+- Sunrise: ${extractedData.sunrise}, Sunset: ${extractedData.sunset}
+
+Suggestions:
+- Clothing: ${clothingSuggestion}
+- Umbrella: ${umbrellaRecommendation}
     `;
   
-    // Call the OpenRouter API with a retry mechanism.
-    const maxRetries = 5;
+    // Call the Google Gemini API with a retry mechanism.
+    const maxRetries = 3;
     let attempts = 0;
-    const ORApiKey = process.env.OR_API_KEY; // Hidden API key from Vercel
   
     while (attempts < maxRetries) {
       try {
-        const response = await fetch(`${baseURL}/chat/completions`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${ORApiKey}`,
-            "HTTP-Referer": siteURL,
-            "X-Title": siteTitle,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: AiModel,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            temperature: 0.8,
-            max_tokens: 1000,
+            contents: [{
+              parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+              temperature: 0.8,
+              maxOutputTokens: 150,
+              topP: 0.95,
+              topK: 40,
+            },
+            safetySettings: [
+              {
+                category: "HARM_CATEGORY_HARASSMENT",
+                threshold: "BLOCK_NONE"
+              },
+              {
+                category: "HARM_CATEGORY_HATE_SPEECH",
+                threshold: "BLOCK_NONE"
+              },
+              {
+                category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                threshold: "BLOCK_NONE"
+              },
+              {
+                category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                threshold: "BLOCK_NONE"
+              }
+            ]
           }),
         });
   
@@ -161,16 +179,15 @@ export default async function handler(req, res) {
         }
   
         const data = await response.json();
-        console.log("system prompt:", systemPrompt);
-        console.log("user prompt:", userPrompt);
-        console.log("Open Router API Full Response:", JSON.stringify(data, null, 2));
+        console.log("prompt:", prompt);
+        console.log("Gemini API Full Response:", JSON.stringify(data, null, 2));
   
-        if (!data.choices || data.choices.length === 0 || !data.choices[0].message) {
+        if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
           throw new Error("Invalid API response structure.");
         }
   
         // Return the suggestion as JSON.
-        return res.status(200).json({ suggestion: data.choices[0].message.content });
+        return res.status(200).json({ suggestion: data.candidates[0].content.parts[0].text });
       } catch (error) {
         console.error(`Attempt ${attempts + 1} - Error:`, error);
         attempts++;
@@ -181,6 +198,8 @@ export default async function handler(req, res) {
               : "Could not generate an AI overview, please wait a minute.";
           return res.status(500).json({ suggestion: fallbackMessage });
         }
+        // Add 1-second delay between retries
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
   }
