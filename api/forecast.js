@@ -1,3 +1,5 @@
+import { getForecast } from './weatherService.js';
+
 export default async function handler(req, res) {
     const { city } = req.query;
     if (!city) {
@@ -5,19 +7,14 @@ export default async function handler(req, res) {
       return;
     }
   
-    const apiKey = process.env.OW_API_KEY;
-    const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(
-      city
-    )}&units=metric&appid=${apiKey}`;
-  
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        return res.status(response.status).json({ error: "Failed to fetch forecast data" });
-      }
-      const data = await response.json();
+      const data = await getForecast({ city });
       res.status(200).json(data);
     } catch (error) {
+      // Handle specific error cases based on status code
+      if (error.statusCode === 404) {
+        return res.status(404).json({ error: "City not found" });
+      }
       res.status(500).json({ error: error.message });
     }
   }
