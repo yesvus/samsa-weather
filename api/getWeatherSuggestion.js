@@ -12,6 +12,15 @@ export default async function handler(req, res) {
       return;
     }
     
+    // Validate weatherData structure
+    if (!weatherData.main || !weatherData.weather || !weatherData.wind || !weatherData.clouds || !weatherData.sys) {
+      console.error("Invalid weatherData structure:", JSON.stringify(weatherData, null, 2));
+      const fallbackMessage = lang === "tr"
+        ? "Geçersiz hava durumu verisi."
+        : "Invalid weather data.";
+      return res.status(400).json({ suggestion: fallbackMessage });
+    }
+    
     // Check for GEMINI_API_KEY
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
     if (!GEMINI_API_KEY) {
@@ -22,8 +31,10 @@ export default async function handler(req, res) {
       return res.status(500).json({ suggestion: fallbackMessage });
     }                         
   
-    // --- determineClothing logic ---
-    const temp = Math.round(weatherData.main.temp);
+    // Wrap data processing in try-catch to handle any unexpected errors
+    try {
+      // --- determineClothing logic ---
+      const temp = Math.round(weatherData.main.temp);
     const windSpeed = weatherData.wind.speed;
     const humidity = weatherData.main.humidity;
     
@@ -131,6 +142,14 @@ Suggestions:
 - Clothing: ${clothingSuggestion}
 - Umbrella: ${umbrellaRecommendation}
     `;
+    } catch (error) {
+      console.error("Error processing weather data:", error);
+      console.error("Weather data received:", JSON.stringify(weatherData, null, 2));
+      const fallbackMessage = lang === "tr"
+        ? "Hava durumu verisi işlenirken hata oluştu."
+        : "Error processing weather data.";
+      return res.status(500).json({ suggestion: fallbackMessage });
+    }
   
     // Call the Google Gemini API with a retry mechanism.
     const maxRetries = 3;
