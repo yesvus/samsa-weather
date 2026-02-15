@@ -176,8 +176,8 @@ Suggestions:
         }
         
         const text = candidate.content.parts[0].text;
-        if (!text || text.trim() === "") {
-          throw new Error("Empty text in API response.");
+        if (!text || typeof text !== 'string' || text.trim() === "") {
+          throw new Error("Empty or invalid text in API response.");
         }
   
         // Return the suggestion as JSON.
