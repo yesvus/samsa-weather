@@ -138,10 +138,11 @@ Suggestions:
   
     while (attempts < maxRetries) {
       try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "x-goog-api-key": GEMINI_API_KEY,
           },
           body: JSON.stringify({
             contents: [{
@@ -149,28 +150,10 @@ Suggestions:
             }],
             generationConfig: {
               temperature: 0.8,
-              maxOutputTokens: 150,
+              maxOutputTokens: 100,
               topP: 0.95,
               topK: 40,
-            },
-            safetySettings: [
-              {
-                category: "HARM_CATEGORY_HARASSMENT",
-                threshold: "BLOCK_NONE"
-              },
-              {
-                category: "HARM_CATEGORY_HATE_SPEECH",
-                threshold: "BLOCK_NONE"
-              },
-              {
-                category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                threshold: "BLOCK_NONE"
-              },
-              {
-                category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                threshold: "BLOCK_NONE"
-              }
-            ]
+            }
           }),
         });
   
