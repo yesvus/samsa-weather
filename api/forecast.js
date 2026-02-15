@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     } catch (error) {
       // Handle specific error cases based on status code
       if (error.statusCode === 404) {
-        return res.status(404).json({ error: "Failed to fetch forecast data" });
+        return res.status(404).json({ error: "City not found" });
       }
       res.status(500).json({ error: error.message });
     }

@@ -227,11 +227,7 @@ export async function getGeocode(params) {
 
 // Export cache management functions for testing/debugging
 export function clearCache() {
-  for (const key in cache) {
-    if (cache.hasOwnProperty(key)) {
-      delete cache[key];
-    }
-  }
+  Object.keys(cache).forEach(key => delete cache[key]);
 }
 
 export function getCacheStats() {
