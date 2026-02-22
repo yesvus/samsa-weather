@@ -2,7 +2,7 @@
 
 ## Note
 
-This repo uses deprecated tech stack since I built it long time ago. This is just a PoC work for API calling and deployment via Vercel processes.
+This repo uses deprecated tech stack (like Bootstrap) since I built it long time ago. This is just a PoC work for API calling and deployment via Vercel processes.
 
 
 ## Check It Live
